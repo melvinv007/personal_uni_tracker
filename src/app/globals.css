@@ -1,23 +1,178 @@
+/**
+ * Global Styles for Tracker
+ * Dark-only theme with dotted surface background.
+ * Reference: PRD Section 3.1 (Theme), Section 3.2 (Colors)
+ * Dotted surface: https://21st.dev/efferd/dotted-surface/default
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --surface: #111111;
+  --border: #262626;
+  --muted: #737373;
+
+  /* Semantic colors */
+  --accent-purple: #a855f7;
+  --accent-blue: #3b82f6;
+  --accent-orange: #f97316;
+  --accent-red: #ef4444;
+  --accent-green: #22c55e;
+  --accent-amber: #f59e0b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark-only — override any system preferences */
+html {
+  color-scheme: dark;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/**
+ * Dotted surface background pattern.
+ * Applied globally as base layer on all pages and modals.
+ * Reference: https://21st.dev/efferd/dotted-surface/default
+ */
+.dotted-surface {
+  position: relative;
+  background-color: var(--background);
+  background-image: radial-gradient(circle, #333333 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Dotted surface for cards and elevated surfaces */
+.dotted-surface-elevated {
+  position: relative;
+  background-color: var(--surface);
+  background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(168, 85, 247, 0.3);
+  color: #ededed;
+}
+
+/* Focus ring utility */
+.focus-glow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
+}
+
+/* FullCalendar dark theme overrides */
+.fc {
+  --fc-bg-event-opacity: 0.3;
+  --fc-border-color: #262626;
+  --fc-button-bg-color: #1a1a1a;
+  --fc-button-border-color: #333333;
+  --fc-button-hover-bg-color: #262626;
+  --fc-button-hover-border-color: #404040;
+  --fc-button-active-bg-color: #333333;
+  --fc-daygrid-event-dot-width: 8px;
+  --fc-event-bg-color: #3b82f6;
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #ededed;
+  --fc-highlight-color: rgba(168, 85, 247, 0.1);
+  --fc-neutral-bg-color: #111111;
+  --fc-neutral-text-color: #737373;
+  --fc-now-indicator-color: #ffffff;
+  --fc-page-bg-color: #0a0a0a;
+  --fc-today-bg-color: rgba(168, 85, 247, 0.05);
+}
+
+.fc .fc-timegrid-col.fc-day-today {
+  background-color: rgba(168, 85, 247, 0.05) !important;
+}
+
+.fc .fc-timegrid-slot {
+  border-color: #1a1a1a !important;
+}
+
+.fc .fc-scrollgrid {
+  border-color: #262626 !important;
+}
+
+.fc .fc-col-header-cell {
+  background-color: #111111;
+  border-color: #262626 !important;
+  color: #ededed;
+  padding: 8px 0;
+}
+
+.fc .fc-timegrid-slot-label {
+  color: #737373;
+  font-size: 0.75rem;
+}
+
+/* Calendar event block truncation */
+.fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cancelled event styling — strikethrough + opacity */
+.fc-event-cancelled .fc-event-title {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* Calendar toolbar dark theme */
+.fc .fc-button {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ededed;
+}
+
+/* Hide scrollbar in calendar on mobile */
+.fc-dark-wrapper .fc-scroller {
+  scrollbar-width: thin;
+}
+
+/* Mobile week strip — compact day headers */
+@media (max-width: 640px) {
+  .fc .fc-col-header-cell {
+    padding: 4px 0;
+    font-size: 0.7rem;
+  }
+  .fc .fc-timegrid-slot-label {
+    font-size: 0.65rem;
+  }
 }
 
 @layer utilities {
