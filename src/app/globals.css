@@ -27,6 +27,7 @@
 /* Dark-only — override any system preferences */
 html {
   color-scheme: dark;
+  font-size: 18px;
 }
 
 body {

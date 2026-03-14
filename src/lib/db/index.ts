@@ -18,6 +18,7 @@ const connectionString = process.env.DATABASE_URL!;
 
 /* Use connection pooling in production, direct connection in development */
 const client = postgres(connectionString, {
+  max: 1,
   prepare: false,
 });
 

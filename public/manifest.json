@@ -1,6 +1,6 @@
 {
-  "name": "Tracker — University Life Tracker",
-  "short_name": "Tracker",
+  "name": "Classey — University Life Tracker",
+  "short_name": "Classey",
   "description": "Personal university life tracker",
   "start_url": "/",
   "display": "standalone",

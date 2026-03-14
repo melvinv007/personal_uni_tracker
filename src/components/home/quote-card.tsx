@@ -1,7 +1,7 @@
 /**
- * Quote Card — Daily motivational quote
+ * Quote Card — Motivational quote
  *
- * Displays a different quote each day using (dayOfYear % totalQuotes).
+ * Displays a random quote on each render/page load.
  * Fade-up entrance animation.
  *
  * Reference: PRD Section 9.2 (Motivational Quote Card)
@@ -9,10 +9,10 @@
 "use client";
 
 import { m } from "framer-motion";
-import { getTodayQuote } from "@/lib/data/quotes";
+import { QUOTES } from "@/lib/data/quotes";
 
 export default function QuoteCard() {
-  const quote = getTodayQuote();
+  const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
   return (
     <m.div

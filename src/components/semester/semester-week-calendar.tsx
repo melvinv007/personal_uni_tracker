@@ -1,25 +1,21 @@
 /**
- * Semester Week Calendar — Week view showing occurrences
+ * Semester Week Calendar — FullCalendar week view for semester page
  *
- * Displays a simplified week calendar with class blocks for the selected week.
- * Navigation: Previous Week / This Week / Next Week.
- * Desktop: 7-column grid. Mobile: horizontal scrollable strip.
- *
- * Reference: PRD Section 10.2 (Week Calendar), Section 12 (Calendar System)
+ * Uses the shared WeekCalendar wrapper to show hourly labels and
+ * proportional event heights based on actual duration.
  */
 "use client";
 
 import { useMemo } from "react";
-import { m } from "framer-motion";
 import {
   format,
+  addDays,
   addWeeks,
   subWeeks,
   startOfWeek,
-  addDays,
-  isToday,
   parseISO,
 } from "date-fns";
+import DynamicWeekCalendar from "@/components/calendar/dynamic-week-calendar";
 import type { Occurrence } from "@/lib/hooks/use-occurrences";
 
 interface SemesterWeekCalendarProps {
@@ -42,25 +38,22 @@ export default function SemesterWeekCalendar({
 }: SemesterWeekCalendarProps) {
   const weekStartDate = parseISO(weekStart);
 
-  /* Generate 7 days of the week (Monday–Sunday) */
-  const days = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i));
-  }, [weekStartDate]);
-
-  /* Group occurrences by date */
-  const occurrencesByDate = useMemo(() => {
-    const map: Record<string, Occurrence[]> = {};
-    for (const occ of occurrences) {
-      const key = occ.occurrenceDate;
-      if (!map[key]) map[key] = [];
-      map[key].push(occ);
-    }
-    /* Sort each day's occurrences by start time */
-    for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => a.startTime.localeCompare(b.startTime));
-    }
-    return map;
-  }, [occurrences]);
+  const calendarEvents = useMemo(
+    () =>
+      occurrences.map((occ) => ({
+        id: occ.id,
+        title: `${occ.class_?.name || "Class"}${occ.isExtra ? " (Extra)" : ""}`,
+        start: `${occ.occurrenceDate}T${occ.startTime}`,
+        end: `${occ.occurrenceDate}T${occ.endTime}`,
+        color: occ.class_?.color || "#a855f7",
+        type: occ.status === "cancelled"
+          ? ("cancelled" as const)
+          : occ.isExtra
+            ? ("extra" as const)
+            : ("class" as const),
+      })),
+    [occurrences]
+  );
 
   /** Navigate to previous/next week */
   const goToPrevWeek = () =>
@@ -130,86 +123,16 @@ export default function SemesterWeekCalendar({
         </button>
       </div>
 
-      {/* Day columns — 7-column grid desktop, horizontal scroll mobile */}
-      <div className="grid grid-cols-7 gap-px bg-border/30 overflow-x-auto">
-        {days.map((day) => {
-          const dateKey = format(day, "yyyy-MM-dd");
-          const dayOccurrences = occurrencesByDate[dateKey] || [];
-          const today = isToday(day);
-
-          return (
-            <div
-              key={dateKey}
-              onClick={() => dayOccurrences.length === 0 && onQuickAdd?.(dateKey)}
-              className={`
-                min-w-[100px] p-2 min-h-[100px] cursor-pointer hover:bg-surface-elevated/30 transition-colors
-                ${today ? "bg-accent-purple/5" : "bg-surface/30"}
-              `}
-            >
-              {/* Day header */}
-              <div className="text-center mb-2">
-                <p className="text-[10px] text-muted uppercase">
-                  {format(day, "EEE")}
-                </p>
-                <p
-                  className={`
-                    text-sm font-medium
-                    ${today ? "text-accent-purple" : "text-foreground"}
-                  `}
-                >
-                  {format(day, "d")}
-                </p>
-              </div>
-
-              {/* Occurrence blocks for this day */}
-              <div className="space-y-1">
-                {dayOccurrences.map((occ) => (
-                  <OccurrenceBlock key={occ.id} occurrence={occ} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+      <div className="p-3">
+        <DynamicWeekCalendar
+          key={weekStart}
+          events={calendarEvents}
+          initialDate={weekStart}
+          onDateSelect={(start) => onQuickAdd?.(format(start, "yyyy-MM-dd"))}
+          showToolbar={false}
+          height={560}
+        />
       </div>
     </div>
-  );
-}
-
-/**
- * Individual occurrence block in the week calendar.
- * Shows class name + time, color-coded by class.
- */
-function OccurrenceBlock({ occurrence }: { occurrence: Occurrence }) {
-  const color = occurrence.class_?.color || "#a855f7";
-  const isCancelled = occurrence.status === "cancelled";
-
-  /* Format time compactly */
-  const formatCompactTime = (time: string) => {
-    const [h, m] = time.split(":");
-    const hour = parseInt(h, 10);
-    const ampm = hour >= 12 ? "p" : "a";
-    return `${hour % 12 || 12}:${m}${ampm}`;
-  };
-
-  return (
-    <m.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`
-        rounded px-1.5 py-1 text-[10px]
-        ${isCancelled ? "opacity-40 line-through" : ""}
-      `}
-      style={{
-        backgroundColor: `${color}20`,
-        borderLeft: `2px solid ${color}`,
-      }}
-    >
-      <p className="font-medium text-foreground truncate">
-        {occurrence.class_?.name || "Class"}
-      </p>
-      <p className="text-muted">
-        {formatCompactTime(occurrence.startTime)}
-      </p>
-    </m.div>
   );
 }

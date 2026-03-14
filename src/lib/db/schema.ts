@@ -74,6 +74,21 @@ export const letterGradeEnum = pgEnum("letter_grade", [
  * ============================================================ */
 
 /**
+ * Users Table
+ *
+ * Mirrors Supabase auth users that sign into the app.
+ * Populated via database trigger from auth.users.
+ */
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey(),
+  email: text("email"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  lastSignIn: timestamp("last_sign_in", { withTimezone: true }),
+});
+
+/**
  * Semesters Table
  *
  * Stores all academic semesters (active, completed, upcoming).

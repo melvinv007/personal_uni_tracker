@@ -28,7 +28,7 @@ self.addEventListener("push", (event) => {
     requireInteraction: false,
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || "Tracker", options));
+  event.waitUntil(self.registration.showNotification(data.title || "Classey", options));
 });
 
 /* Handle notification click — open the relevant page */

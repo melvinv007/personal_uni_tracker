@@ -2,7 +2,7 @@
  * Motivational Quotes Data
  *
  * Purpose: Hardcoded list of motivational quotes for the home page.
- * A different quote is shown each day using (dayOfYear % totalQuotes).
+ * A random quote is shown on each render/page refresh.
  *
  * No external API needed — PRD Section 9.2.
  *
@@ -60,18 +60,13 @@ export const QUOTES: Quote[] = [
 ];
 
 /**
- * Gets the quote for today based on day of year.
- * Uses modular arithmetic: dayOfYear % totalQuotes.
+ * Gets a random quote from the static list.
  *
- * @param date - Date to get quote for (defaults to today)
- * @returns Today's quote
+ * @returns Random quote
  *
  * Reference: PRD Section 9.2
  */
-export function getTodayQuote(date: Date = new Date()): Quote {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date.getTime() - start.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const index = dayOfYear % QUOTES.length;
+export function getRandomQuote(): Quote {
+  const index = Math.floor(Math.random() * QUOTES.length);
   return QUOTES[index];
 }

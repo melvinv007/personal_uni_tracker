@@ -86,15 +86,28 @@ const scheduleSlotSchema = z.object({
 });
 
 /** Class creation form validation */
-export const createClassSchema = z.object({
-  name: z.string().min(1, "Class name is required").max(100, "Name too long"),
-  category: z.enum(["Core", "Minor", "Elective", "Other"]),
-  credits: z.number().int().min(1, "Credits must be at least 1").max(20),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  color: hexColor.optional(),
-  scheduleSlots: z.array(scheduleSlotSchema).optional(),
-});
+export const createClassSchema = z
+  .object({
+    name: z.string().min(1, "Class name is required").max(100, "Name too long"),
+    category: z.enum(["Core", "Minor", "Elective", "Other"]),
+    credits: z.number().int().min(1, "Credits must be at least 1").max(20),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    color: hexColor.optional(),
+    scheduleSlots: z.array(scheduleSlotSchema).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: "End date must be after or equal to start date",
+      path: ["endDate"],
+    }
+  );
 
 export const updateClassSchema = z.object({
   name: z.string().min(1).max(100).optional(),

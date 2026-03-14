@@ -113,8 +113,8 @@ export default function WeekCalendar({
         initialView="timeGridWeek"
         initialDate={initialDate}
         /* Time grid settings — PRD Section 12.2 */
-        slotMinTime="06:00:00"
-        slotMaxTime="23:00:00"
+        slotMinTime="00:00:00"
+        slotMaxTime="24:00:00"
         slotDuration="00:30:00"
         slotLabelInterval="01:00:00"
         allDaySlot={false}

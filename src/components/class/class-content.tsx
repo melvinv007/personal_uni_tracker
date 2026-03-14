@@ -41,6 +41,7 @@ import PendingAttendance from "./pending-attendance";
 import AttendanceCalculator from "./attendance-calculator";
 import AttendanceHistory from "./attendance-history";
 import AssignmentsSection from "./assignments-section";
+import CreateAssignmentModal from "./create-assignment-modal";
 import ClassMarksTrend from "./class-marks-trend";
 import ExamScorePredictor from "./exam-score-predictor";
 import LetterGradeInput from "./letter-grade-input";
@@ -65,6 +66,7 @@ export default function ClassContent({
   const { data: tasks } = useClassTasks(classId);
   const { data: semesterData } = useSemester(semesterId);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showCreateExtraClass, setShowCreateExtraClass] = useState(false);
 
@@ -207,6 +209,7 @@ export default function ClassContent({
             tasks={tasks || []}
             classId={classId}
             semesterId={semesterId}
+            onCreateNew={() => setShowCreateAssignment(true)}
           />
 
           {/* Marks Trend Graph — PRD Section 11.12 */}
@@ -302,6 +305,15 @@ export default function ClassContent({
           classId={classId}
           semesterId={semesterId}
           onClose={() => setShowCreateTask(false)}
+        />
+      )}
+
+      {/* Create Assignment Modal */}
+      {showCreateAssignment && (
+        <CreateAssignmentModal
+          classId={classId}
+          semesterId={semesterId}
+          onClose={() => setShowCreateAssignment(false)}
         />
       )}
 

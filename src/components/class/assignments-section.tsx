@@ -22,6 +22,7 @@ interface AssignmentsSectionProps {
   tasks: Task[];
   classId: string;
   semesterId: string;
+  onCreateNew: () => void;
 }
 
 /**
@@ -31,6 +32,7 @@ export default function AssignmentsSection({
   tasks,
   classId,
   semesterId,
+  onCreateNew,
 }: AssignmentsSectionProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -43,15 +45,31 @@ export default function AssignmentsSection({
   if (assignments.length === 0) {
     return (
       <div>
-        <h2 className="text-lg font-semibold text-foreground mb-4">Assignments</h2>
-        <EmptyState message="No assignments yet" />
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Assignments</h2>
+          <button
+            onClick={onCreateNew}
+            className="text-xs text-muted hover:text-foreground transition-colors"
+          >
+            + New
+          </button>
+        </div>
+        <EmptyState message="No assignments yet" onAction={onCreateNew} />
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-foreground mb-4">Assignments</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-foreground">Assignments</h2>
+        <button
+          onClick={onCreateNew}
+          className="text-xs text-muted hover:text-foreground transition-colors"
+        >
+          + New
+        </button>
+      </div>
 
       <div className="space-y-2">
         {/* Pending assignments */}

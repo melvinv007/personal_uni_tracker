@@ -63,7 +63,7 @@ export default function LoginPage() {
       >
         {/* App branding */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Tracker</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Classey</h1>
           <p className="text-sm text-muted">
             Your personal university life tracker
           </p>

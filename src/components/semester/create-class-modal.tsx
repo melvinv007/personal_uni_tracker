@@ -133,6 +133,22 @@ export default function CreateClassModal({
           />
         </div>
 
+        {/* Date range */}
+        <div className="grid grid-cols-2 gap-3">
+          <FormInput
+            label="Start Date"
+            type="date"
+            error={errors.startDate?.message}
+            {...register("startDate")}
+          />
+          <FormInput
+            label="End Date"
+            type="date"
+            error={errors.endDate?.message}
+            {...register("endDate")}
+          />
+        </div>
+
         {/* Color picker */}
         <FormColorPicker
           label="Color"

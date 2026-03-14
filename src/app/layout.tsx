@@ -17,6 +17,8 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { UserMenu } from "@/components/ui/user-menu";
+import { createClient } from "@/lib/supabase/server";
 
 /** Geist Sans — primary font for all UI text */
 const geistSans = localFont({
@@ -33,7 +35,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Tracker — University Life Tracker",
+  title: "Classey — University Life Tracker",
   description:
     "Personal university life tracker for managing semesters, classes, attendance, assignments, exams, and academic analytics.",
   manifest: "/manifest.json",
@@ -46,11 +48,16 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <html lang="en" className="dark">
       <body
@@ -58,7 +65,14 @@ export default function RootLayout({
       >
         <Providers>
           {/* Dotted surface background — PRD Section 3.1 */}
-          <div className="dotted-surface min-h-screen">{children}</div>
+          <div className="dotted-surface min-h-screen">
+            {user && (
+              <div className="fixed right-4 top-4 z-50">
+                <UserMenu userId={user.id} email={user.email ?? ""} />
+              </div>
+            )}
+            {children}
+          </div>
         </Providers>
       </body>
     </html>
