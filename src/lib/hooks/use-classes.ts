@@ -10,7 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { showToast } from "@/components/ui/toast";
-import { semesterKeys } from "./use-semesters";
+import { useUndoToast } from "./use-undo-toast";
 import type { CreateClassInput, UpdateClassInput } from "@/lib/validations/schemas";
 
 /** Query key factory for classes */
@@ -182,10 +182,9 @@ export function useCreateClass(semesterId: string) {
       showToast("Failed to create class", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: classKeys.bySemester(semesterId),
-      });
-      queryClient.invalidateQueries({ queryKey: semesterKeys.detail(semesterId) });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
     onSuccess: () => {
       showToast("Class created", "success");
@@ -196,6 +195,7 @@ export function useCreateClass(semesterId: string) {
 /**
  * Updates a class with optimistic update.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useUpdateClass(id: string, semesterId: string) {
   const queryClient = useQueryClient();
 
@@ -216,8 +216,11 @@ export function useUpdateClass(id: string, semesterId: string) {
       await queryClient.cancelQueries({ queryKey: classKeys.detail(id) });
       const previous = queryClient.getQueryData<ClassDetail>(classKeys.detail(id));
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { scheduleSlots, ...simpleUpdates } = updates;
+
       queryClient.setQueryData<ClassDetail>(classKeys.detail(id), (old) =>
-        old ? { ...old, ...updates } : old
+        old ? { ...old, ...simpleUpdates } : old
       );
 
       return { previous };
@@ -229,10 +232,9 @@ export function useUpdateClass(id: string, semesterId: string) {
       showToast("Failed to update class", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: classKeys.detail(id) });
-      queryClient.invalidateQueries({
-        queryKey: classKeys.bySemester(semesterId),
-      });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }
@@ -242,6 +244,7 @@ export function useUpdateClass(id: string, semesterId: string) {
  */
 export function useDeleteClass(semesterId: string) {
   const queryClient = useQueryClient();
+  const { showUndoToast } = useUndoToast();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -273,11 +276,22 @@ export function useDeleteClass(semesterId: string) {
       }
       showToast("Failed to delete class", "error");
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: classKeys.bySemester(semesterId),
+    onSuccess: (_data, id) => {
+      showUndoToast({
+        id,
+        entityName: "Class",
+        apiPath: "/api/classes",
+        invalidateKeys: [["classes"], ["semesters"], ["occurrences"]],
       });
-      queryClient.invalidateQueries({ queryKey: semesterKeys.detail(semesterId) });
+    },
+    onSettled: () => {
+      // We don't necessarily want to invalidate immediately on settled,
+      // as it might fetch the list before the undo happens. 
+      // The soft-delete API already removed it from GET responses, so an 
+      // invalidate here is safe, but the optimistic update handles the immediate UI.
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }

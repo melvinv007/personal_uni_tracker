@@ -9,7 +9,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { exams, classes } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { createExamSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -32,7 +32,13 @@ export async function GET(request: NextRequest) {
   const data = await db
     .select()
     .from(exams)
-    .where(and(eq(exams.classId, classId), eq(exams.userId, user.id)));
+    .where(
+      and(
+        eq(exams.classId, classId),
+        eq(exams.userId, user.id),
+        isNull(exams.deletedAt)
+      )
+    );
 
   return apiSuccess(data);
 }

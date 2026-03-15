@@ -11,7 +11,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { classOccurrences, classes } from "@/lib/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, isNull } from "drizzle-orm";
 import { createExtraClassSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
     const data = await db.query.classOccurrences.findMany({
       where: and(
         eq(classOccurrences.classId, classId),
-        eq(classOccurrences.userId, user.id)
+        eq(classOccurrences.userId, user.id),
+        isNull(classOccurrences.deletedAt)
       ),
       with: { attendance: true, class_: true },
     });
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
       eq(classOccurrences.userId, user.id),
       gte(classOccurrences.occurrenceDate, dateFrom),
       lte(classOccurrences.occurrenceDate, dateTo),
+      isNull(classOccurrences.deletedAt),
     ];
 
     const data = await db.query.classOccurrences.findMany({
@@ -67,7 +69,8 @@ export async function GET(request: NextRequest) {
     const data = await db.query.classOccurrences.findMany({
       where: and(
         eq(classOccurrences.userId, user.id),
-        eq(classOccurrences.occurrenceDate, date)
+        eq(classOccurrences.occurrenceDate, date),
+        isNull(classOccurrences.deletedAt)
       ),
       with: { attendance: true, class_: true },
     });
@@ -84,18 +87,17 @@ export async function GET(request: NextRequest) {
     const classIds = semesterClasses.map((c) => c.id);
     if (classIds.length === 0) return apiSuccess([]);
 
-    /* Query occurrences for all classes in this semester */
-    const allOccurrences = [];
-    for (const cId of classIds) {
-      const occs = await db.query.classOccurrences.findMany({
-        where: and(
-          eq(classOccurrences.classId, cId),
-          eq(classOccurrences.userId, user.id)
-        ),
-        with: { attendance: true, class_: true },
-      });
-      allOccurrences.push(...occs);
-    }
+    // Single query for all occurrences in these classes
+    // Use inArray for classOccurrences.classId
+    const { inArray } = await import("drizzle-orm/sql/expressions/conditions");
+    const allOccurrences = await db.query.classOccurrences.findMany({
+      where: and(
+        eq(classOccurrences.userId, user.id),
+        inArray(classOccurrences.classId, classIds),
+        isNull(classOccurrences.deletedAt)
+      ),
+      with: { attendance: true, class_: true },
+    });
     return apiSuccess(allOccurrences);
   }
 

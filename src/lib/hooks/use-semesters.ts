@@ -10,6 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { showToast } from "@/components/ui/toast";
+import { useUndoToast } from "./use-undo-toast";
 import type { CreateSemesterInput, UpdateSemesterInput } from "@/lib/validations/schemas";
 
 /** Query key factory for semesters */
@@ -209,6 +210,7 @@ export function useUpdateSemester(id: string) {
  */
 export function useDeleteSemester() {
   const queryClient = useQueryClient();
+  const { showUndoToast } = useUndoToast();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -231,6 +233,14 @@ export function useDeleteSemester() {
         queryClient.setQueryData(semesterKeys.all, context.previous);
       }
       showToast("Failed to delete semester", "error");
+    },
+    onSuccess: (_data, id) => {
+      showUndoToast({
+        id,
+        entityName: "Semester",
+        apiPath: "/api/semesters",
+        invalidateKeys: [["semesters"]],
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: semesterKeys.all });

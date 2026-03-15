@@ -113,6 +113,7 @@ export const semesters = pgTable("semesters", {
   isCompleted: boolean("is_completed").default(false),
   /** Rich text notes — auto-saved with debounce — PRD Section 10.9 */
   notes: text("notes"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -168,6 +169,7 @@ export const classes = pgTable("classes", {
   endDate: date("end_date").notNull(),
   /** Rich text notes — auto-saved — PRD Section 11.15 */
   notes: text("notes"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -202,6 +204,7 @@ export const classScheduleSlots = pgTable("class_schedule_slots", {
   validFrom: date("valid_from").notNull(),
   /** End of validity — null means active until semester end */
   validUntil: date("valid_until"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -234,6 +237,7 @@ export const classOccurrences = pgTable("class_occurrences", {
   status: occurrenceStatusEnum("status").default("scheduled").notNull(),
   /** True for one-time extra classes added via FAB */
   isExtra: boolean("is_extra").default(false),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -263,6 +267,7 @@ export const attendance = pgTable(
     markedAt: timestamp("marked_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -331,6 +336,7 @@ export const tasks = pgTable(
     isSubmitted: boolean("is_submitted").default(false),
     /** Optional link to an exam — deletion warning shown if set */
     linkedExamId: uuid("linked_exam_id"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -371,6 +377,7 @@ export const exams = pgTable(
     totalMarks: decimal("total_marks", { precision: 6, scale: 2 }).notNull(),
     /** Percentage weightage (e.g. 30 for 30%) */
     weightage: decimal("weightage", { precision: 5, scale: 2 }).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -465,6 +472,7 @@ export const nonAcademicEvents = pgTable("non_academic_events", {
   /** Optional custom color — if null, uses default distinct style */
   color: text("color"),
   notes: text("notes"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -493,6 +501,7 @@ export const files = pgTable("files", {
   sortOrder: integer("sort_order").default(0),
   /** Whether the stored handle is still valid/accessible */
   handleValid: boolean("handle_valid").default(true),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

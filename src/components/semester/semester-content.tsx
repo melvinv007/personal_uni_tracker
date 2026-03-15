@@ -111,13 +111,16 @@ export default function SemesterContent({ semesterId }: SemesterContentProps) {
       weightage: parseFloat(exam.weightage),
     }))
   );
-  const projectedSPI = calculateProjectedSPI(allExams);
+  
+  const rawProjectedSPI = calculateProjectedSPI(allExams);
+  const projectedSPI = rawProjectedSPI != null ? parseFloat(rawProjectedSPI.toFixed(2)) : null;
 
   /* Official SPI from officialGrades if available */
-  const officialSPI =
+  const rawOfficialSPI =
     semester.officialGrades?.[0]?.spi != null
       ? parseFloat(semester.officialGrades[0].spi)
       : null;
+  const officialSPI = rawOfficialSPI != null ? parseFloat(rawOfficialSPI.toFixed(2)) : null;
 
   return (
     <>
@@ -147,14 +150,20 @@ export default function SemesterContent({ semesterId }: SemesterContentProps) {
             tasks={tasks || []}
           />
 
-          {/* Attendance Overview — PRD Section 10.4 */}
-          <AttendanceOverview classes={semester.classes} />
-
-          {/* Class Cards Grid — PRD Section 10.5 */}
+          {/* Class Cards Grid — PRD Section 10.5 (Now Section 4 per BF-16) */}
           <ClassCardsGrid
             classes={semester.classes}
             semesterId={semesterId}
             onCreateNew={() => setShowCreateClass(true)}
+          />
+
+          {/* Attendance Overview — PRD Section 10.4 (Now Section 5 per BF-16) */}
+          <AttendanceOverview classes={semester.classes} />
+
+          {/* Notes — PRD Section 10.9 (Now Section 6 per BF-16) */}
+          <SemesterNotes
+            semesterId={semesterId}
+            initialNotes={semester.notes || ""}
           />
 
           {/* Marks Trend Graphs — PRD Section 10.6 */}
@@ -165,12 +174,6 @@ export default function SemesterContent({ semesterId }: SemesterContentProps) {
 
           {/* Semester Insights — PRD Section 10.8 */}
           <SemesterInsights classes={semester.classes} />
-
-          {/* Notes — PRD Section 10.9 */}
-          <SemesterNotes
-            semesterId={semesterId}
-            initialNotes={semester.notes || ""}
-          />
         </div>
       </div>
 

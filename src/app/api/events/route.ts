@@ -11,7 +11,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { nonAcademicEvents } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { createNonAcademicEventSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(nonAcademicEvents.semesterId, semesterId),
-          eq(nonAcademicEvents.userId, user.id)
+          eq(nonAcademicEvents.userId, user.id),
+          isNull(nonAcademicEvents.deletedAt)
         )
       );
     return apiSuccess(data);
@@ -47,7 +48,12 @@ export async function GET(request: NextRequest) {
   const data = await db
     .select()
     .from(nonAcademicEvents)
-    .where(eq(nonAcademicEvents.userId, user.id));
+    .where(
+      and(
+        eq(nonAcademicEvents.userId, user.id),
+        isNull(nonAcademicEvents.deletedAt)
+      )
+    );
 
   return apiSuccess(data);
 }

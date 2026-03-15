@@ -10,8 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { showToast } from "@/components/ui/toast";
-import { classKeys } from "./use-classes";
-import { semesterKeys } from "./use-semesters";
+import { useUndoToast } from "./use-undo-toast";
 import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validations/schemas";
 
 /** Query key factory for tasks */
@@ -127,11 +126,10 @@ export function useCreateTask(semesterId: string, classId?: string) {
       showToast("Failed to create task", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
-      if (classId) {
-        queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
-      }
-      queryClient.invalidateQueries({ queryKey: semesterKeys.detail(semesterId) });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
     onSuccess: () => {
       showToast("Task created", "success");
@@ -186,7 +184,10 @@ export function useUpdateTask(semesterId: string, classId?: string) {
       showToast("Failed to update task", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }
@@ -196,6 +197,8 @@ export function useUpdateTask(semesterId: string, classId?: string) {
  */
 export function useDeleteTask(semesterId: string, classId?: string) {
   const queryClient = useQueryClient();
+  const { showUndoToast } = useUndoToast();
+
   const queryKey = classId
     ? taskKeys.byClass(classId)
     : taskKeys.bySemester(semesterId);
@@ -222,8 +225,19 @@ export function useDeleteTask(semesterId: string, classId?: string) {
       }
       showToast("Failed to delete task", "error");
     },
+    onSuccess: (_data, id) => {
+      showUndoToast({
+        id,
+        entityName: "Task",
+        apiPath: "/api/tasks",
+        invalidateKeys: [["tasks"], ["classes"], ["semesters"], ["occurrences"]],
+      });
+    },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }

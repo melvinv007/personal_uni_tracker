@@ -1,0 +1,18 @@
+No config path provided, using default 'drizzle.config.ts'
+Reading config file 'C:\Users\vmelv\Desktop\tracker\drizzle.config.ts'
+[dotenv@17.3.1] injecting env (13) from .env.local -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+Using 'postgres' driver for database querying
+[Γú╖] Pulling schema from database...
+[2K[1G[Γú»] Pulling schema from database...
+[2K[1G[Γúƒ] Pulling schema from database...
+[2K[1G[Γí┐] Pulling schema from database...
+[2K[1G[Γó┐] Pulling schema from database...
+C:\Users\vmelv\Desktop\tracker\node_modules\drizzle-kit\bin.cjs:19578
+              checkValue = checkValue.replace(/^CHECK\s*\(\(/, "").replace(/\)\)\s*$/, "");
+                                      ^
+
+TypeError: Cannot read properties of undefined (reading 'replace')
+    at C:\Users\vmelv\Desktop\tracker\node_modules\drizzle-kit\bin.cjs:19578:39
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+Node.js v24.11.0

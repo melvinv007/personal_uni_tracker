@@ -2,6 +2,7 @@
  * Files Section — Desktop-only file reference manager
  *
  * Uses File System Access API to store file handles (no upload).
+ * Handles are stored in IndexedDB (cannot be JSON-serialized).
  * Drag-to-reorder with dnd-kit. Search bar for filtering.
  * Only renders when File System Access API is available.
  *
@@ -31,6 +32,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { showToast } from "@/components/ui/toast";
 import { classKeys } from "@/lib/hooks/use-classes";
 import { EmptyState } from "@/components/ui/empty-state";
+import { saveHandle, getHandle, removeHandle } from "@/lib/file-handle-store";
+import { useUndoToast } from "@/lib/hooks/use-undo-toast";
 
 interface FileRecord {
   id: string;
@@ -124,14 +127,20 @@ function AddFileButton({
   const queryClient = useQueryClient();
 
   const createFile = useMutation({
-    mutationFn: async (displayName: string) => {
+    mutationFn: async ({ displayName, handle }: { displayName: string; handle: FileSystemFileHandle }) => {
       const res = await fetch("/api/files", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ classId, displayName }),
       });
       if (!res.ok) throw new Error("Failed to create file");
-      return res.json();
+      const json = await res.json();
+      /* Store the handle in IndexedDB keyed by the new file record ID */
+      const fileId = json.data?.id || json.id;
+      if (fileId) {
+        await saveHandle(fileId, handle);
+      }
+      return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
@@ -145,9 +154,9 @@ function AddFileButton({
   const handleAdd = async () => {
     try {
       /* Open the file picker — PRD Section 18.2 */
-      const [handle] = await (window as unknown as { showOpenFilePicker: () => Promise<Array<{ name: string }>> }).showOpenFilePicker();
+      const [handle] = await (window as unknown as { showOpenFilePicker: () => Promise<FileSystemFileHandle[]> }).showOpenFilePicker();
       const name = handle.name || "Untitled";
-      createFile.mutate(name);
+      createFile.mutate({ displayName: name, handle });
     } catch {
       /* User cancelled the file picker — no action needed */
     }
@@ -269,29 +278,31 @@ function SortableFileItem({
     isDragging,
   } = useSortable({ id: file.id });
   const queryClient = useQueryClient();
+  const { showUndoToast } = useUndoToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(file.displayName);
+  const [openState, setOpenState] = useState<
+    "idle" | "opening" | "reverify" | "denied" | "no-handle"
+  >("idle");
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  /* Mutation to update file name */
+  /* Mutation to update file metadata */
   const updateFile = useMutation({
-    mutationFn: async (displayName: string) => {
+    mutationFn: async (data: { displayName?: string; handleValid?: boolean }) => {
       const res = await fetch(`/api/files/${file.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName }),
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to update");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
-      showToast("File renamed", "success");
-      setIsEditing(false);
     },
   });
 
@@ -300,16 +311,85 @@ function SortableFileItem({
     mutationFn: async () => {
       const res = await fetch(`/api/files/${file.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
+      /* Also remove the handle from IndexedDB */
+      await removeHandle(file.id);
     },
     onSuccess: () => {
+      showUndoToast({
+        id: file.id,
+        entityName: "File",
+        apiPath: "/api/files",
+        invalidateKeys: [classKeys.detail(classId) as unknown as string[]],
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
-      showToast("File removed", "success");
     },
   });
 
+  /**
+   * Open the file — PRD Section 18.3
+   * 1. Retrieve handle from IndexedDB
+   * 2. Get file via handle.getFile()
+   * 3. Create object URL and open in new tab
+   * 4. Handle permission revocation gracefully
+   */
+  const handleOpen = async () => {
+    setOpenState("opening");
+    try {
+      const handle = await getHandle(file.id);
+      if (!handle) {
+        setOpenState("no-handle");
+        updateFile.mutate({ handleValid: false });
+        return;
+      }
+      await openFileFromHandle(handle);
+      setOpenState("idle");
+      /* Mark as valid if it was previously invalid */
+      if (file.handleValid === false) {
+        updateFile.mutate({ handleValid: true });
+      }
+    } catch {
+      /* Permission likely revoked — show re-verify button */
+      setOpenState("reverify");
+      updateFile.mutate({ handleValid: false });
+    }
+  };
+
+  /**
+   * Re-verify permission and open — PRD Section 18.5
+   */
+  const handleReVerify = async () => {
+    setOpenState("opening");
+    try {
+      const handle = await getHandle(file.id);
+      if (!handle) {
+        setOpenState("no-handle");
+        return;
+      }
+      /* Request read permission */
+      const permission = await (handle as FileSystemFileHandle & {
+        requestPermission: (opts: { mode: string }) => Promise<string>;
+      }).requestPermission({ mode: "read" });
+
+      if (permission !== "granted") {
+        setOpenState("denied");
+        return;
+      }
+
+      await openFileFromHandle(handle);
+      setOpenState("idle");
+      updateFile.mutate({ handleValid: true });
+    } catch {
+      setOpenState("denied");
+    }
+  };
+
   const handleRename = () => {
     if (editName.trim() && editName !== file.displayName) {
-      updateFile.mutate(editName.trim());
+      updateFile.mutate({ displayName: editName.trim() });
+      showToast("File renamed", "success");
+      setIsEditing(false);
     } else {
       setIsEditing(false);
     }
@@ -359,11 +439,30 @@ function SortableFileItem({
         </span>
       )}
 
-      {/* Broken handle warning — PRD Section 18.5 */}
-      {file.handleValid === false && (
-        <span className="text-[9px] text-accent-amber px-1.5 py-0.5 rounded bg-accent-amber/20 shrink-0">
-          Re-verify
+      {/* Open / Re-verify / Status button — always visible (PRD §18.3) */}
+      {openState === "reverify" ? (
+        <button
+          onClick={handleReVerify}
+          className="text-[10px] font-medium px-2 py-1 rounded-full bg-accent-amber/20 text-accent-amber hover:bg-accent-amber/30 transition-colors shrink-0"
+        >
+          Re-verify Access
+        </button>
+      ) : openState === "denied" ? (
+        <span className="text-[9px] text-accent-red px-1.5 py-0.5 rounded bg-accent-red/20 shrink-0">
+          Permission denied. Please re-add this file.
         </span>
+      ) : openState === "no-handle" ? (
+        <span className="text-[9px] text-accent-amber px-1.5 py-0.5 rounded bg-accent-amber/20 shrink-0">
+          Handle lost. Re-add file.
+        </span>
+      ) : (
+        <button
+          onClick={handleOpen}
+          disabled={openState === "opening"}
+          className="text-[10px] font-medium px-2 py-1 rounded-full bg-accent-purple/20 text-accent-purple hover:bg-accent-purple/30 transition-colors shrink-0 disabled:opacity-50"
+        >
+          {openState === "opening" ? "Opening…" : "Open"}
+        </button>
       )}
 
       {/* Actions (visible on hover) */}
@@ -393,4 +492,14 @@ function SortableFileItem({
       </div>
     </div>
   );
+}
+
+/**
+ * Helper: open a file from its FileSystemFileHandle.
+ * Gets the File object, creates an object URL, and opens in a new tab.
+ */
+async function openFileFromHandle(handle: FileSystemFileHandle): Promise<void> {
+  const file = await handle.getFile();
+  const url = URL.createObjectURL(file);
+  window.open(url);
 }

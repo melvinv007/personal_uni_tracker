@@ -90,7 +90,7 @@ export const createClassSchema = z
   .object({
     name: z.string().min(1, "Class name is required").max(100, "Name too long"),
     category: z.enum(["Core", "Minor", "Elective", "Other"]),
-    credits: z.number().int().min(1, "Credits must be at least 1").max(20),
+    credits: z.number().int().min(0, "Credits cannot be negative").max(60, "Credits cannot exceed 60"),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     color: hexColor.optional(),
@@ -112,11 +112,12 @@ export const createClassSchema = z
 export const updateClassSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   category: z.enum(["Core", "Minor", "Elective", "Other"]).optional(),
-  credits: z.number().int().min(1).max(20).optional(),
+  credits: z.number().int().min(0).max(60).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   color: hexColor.optional(),
   notes: z.string().nullable().optional(),
+  scheduleSlots: z.array(scheduleSlotSchema).optional(),
 });
 
 export type CreateClassInput = z.infer<typeof createClassSchema>;

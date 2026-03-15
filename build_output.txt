@@ -1,0 +1,54 @@
+
+> classey@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.35
+  - Environments: .env.local
+  - Experiments (use with caution):
+    ┬╖ instrumentationHook
+
+   Creating an optimized production build ...
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.ts` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.ts` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./src/components/class/files-section.tsx
+317:17  Error: '_data' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/home/day-view-calendar.tsx
+19:15  Error: 'Semester' is defined but never used.  @typescript-eslint/no-unused-vars
+25:20  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+149:42  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+151:34  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/home/semester-grid.tsx
+111:9  Error: 'handleToggleActive' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/ui/user-menu.tsx
+58:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/lib/hooks/use-attendance.ts
+13:10  Error: 'classKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+142:35  Error: 'classId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/hooks/use-classes.ts
+14:10  Error: 'semesterKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+199:44  Error: 'semesterId' is defined but never used.  @typescript-eslint/no-unused-vars
+219:15  Error: 'scheduleSlots' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/hooks/use-events.ts
+15:10  Error: 'semesterKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/hooks/use-exams.ts
+14:10  Error: 'classKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/hooks/use-occurrences.ts
+90:37  Error: 'classId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/hooks/use-tasks.ts
+14:10  Error: 'classKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+15:10  Error: 'semesterKeys' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules

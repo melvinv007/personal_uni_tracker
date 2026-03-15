@@ -114,6 +114,26 @@ export default function EditSemesterModal({
             error={errors.color?.message}
           />
 
+          {/* Active Status Toggle — Moved here per BF-15 */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface-base">
+            <div>
+              <p className="text-sm font-medium text-foreground">Active Semester</p>
+              <p className="text-xs text-muted">Set this as your current active semester.</p>
+              {semester.isCompleted && (
+                <p className="text-[10px] text-accent-amber mt-1">Completed semesters cannot be active.</p>
+              )}
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                disabled={semester.isCompleted ?? false}
+                {...register("isActive")}
+              />
+              <div className="w-11 h-6 bg-surface-elevated peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-green disabled:opacity-50 disabled:cursor-not-allowed"></div>
+            </label>
+          </div>
+
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
@@ -138,8 +158,30 @@ export default function EditSemesterModal({
             </button>
           </div>
 
-          {/* Delete option — inside edit modal per PRD §21.5 */}
-          <div className="pt-2 border-t border-border/30">
+          {/* Mark as Complete / Unmark — BF-11 */}
+          <div className="pt-2 border-t border-border/30 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={async () => {
+                const newCompleted = !(semester.isCompleted ?? false);
+                await updateSemester.mutateAsync({
+                  isCompleted: newCompleted,
+                  /* If marking complete, also deactivate */
+                  ...(newCompleted ? { isActive: false } : {}),
+                });
+                onClose();
+              }}
+              disabled={updateSemester.isPending}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                semester.isCompleted
+                  ? "text-accent-amber hover:text-accent-amber/80"
+                  : "text-accent-green hover:text-accent-green/80"
+              }`}
+            >
+              {semester.isCompleted ? "Unmark as Complete" : "✓ Mark as Complete"}
+            </button>
+
+            {/* Delete option — inside edit modal per PRD §21.5 */}
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}

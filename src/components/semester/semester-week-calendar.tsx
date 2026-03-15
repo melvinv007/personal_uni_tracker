@@ -1,12 +1,15 @@
 /**
  * Semester Week Calendar — FullCalendar week view for semester page
  *
- * Uses the shared WeekCalendar wrapper to show hourly labels and
- * proportional event heights based on actual duration.
+ * Desktop (lg+): FullCalendar timeGridWeek with hourly labels and
+ * proportional event heights.
+ * Mobile (<lg): Swipeable day strip with event list below.
+ *
+ * Reference: PRD Section 10.2, BF-07
  */
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   format,
   addDays,
@@ -14,6 +17,8 @@ import {
   subWeeks,
   startOfWeek,
   parseISO,
+  isToday,
+  isSameDay,
 } from "date-fns";
 import DynamicWeekCalendar from "@/components/calendar/dynamic-week-calendar";
 import type { Occurrence } from "@/lib/hooks/use-occurrences";
@@ -27,8 +32,12 @@ interface SemesterWeekCalendarProps {
   onQuickAdd?: (date: string) => void;
 }
 
+/** Day label abbreviations for the strip */
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
 /**
  * SemesterWeekCalendar — Week view for the semester page.
+ * Responsive: FullCalendar on desktop, day strip on mobile.
  */
 export default function SemesterWeekCalendar({
   occurrences,
@@ -37,6 +46,15 @@ export default function SemesterWeekCalendar({
   onQuickAdd,
 }: SemesterWeekCalendarProps) {
   const weekStartDate = parseISO(weekStart);
+
+  /* Selected day for mobile day strip — defaults to today if within this week, else Monday */
+  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      if (isSameDay(addDays(weekStartDate, i), today)) return i;
+    }
+    return 0;
+  });
 
   const calendarEvents = useMemo(
     () =>
@@ -55,15 +73,45 @@ export default function SemesterWeekCalendar({
     [occurrences]
   );
 
+  /** Get the 7 day dates for this week */
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, i)),
+    [weekStartDate]
+  );
+
+  /** Filter occurrences for the selected day (mobile view) */
+  const selectedDate = weekDays[selectedDayIndex];
+  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+  const dayOccurrences = useMemo(
+    () =>
+      occurrences
+        .filter((occ) => occ.occurrenceDate === selectedDateStr)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    [occurrences, selectedDateStr]
+  );
+
   /** Navigate to previous/next week */
-  const goToPrevWeek = () =>
+  const goToPrevWeek = () => {
     onWeekChange(format(subWeeks(weekStartDate, 1), "yyyy-MM-dd"));
-  const goToNextWeek = () =>
+    setSelectedDayIndex(0);
+  };
+  const goToNextWeek = () => {
     onWeekChange(format(addWeeks(weekStartDate, 1), "yyyy-MM-dd"));
-  const goToThisWeek = () =>
-    onWeekChange(
-      format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd")
-    );
+    setSelectedDayIndex(0);
+  };
+  const goToThisWeek = () => {
+    const thisMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    onWeekChange(format(thisMonday, "yyyy-MM-dd"));
+    /* Select today */
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      if (isSameDay(addDays(thisMonday, i), today)) {
+        setSelectedDayIndex(i);
+        return;
+      }
+    }
+    setSelectedDayIndex(0);
+  };
 
   return (
     <div className="rounded-xl border border-border dotted-surface-elevated overflow-hidden">
@@ -123,7 +171,8 @@ export default function SemesterWeekCalendar({
         </button>
       </div>
 
-      <div className="p-3">
+      {/* Desktop: FullCalendar week grid (hidden on mobile) */}
+      <div className="hidden lg:block p-3">
         <DynamicWeekCalendar
           key={weekStart}
           events={calendarEvents}
@@ -133,6 +182,93 @@ export default function SemesterWeekCalendar({
           height={560}
         />
       </div>
+
+      {/* Mobile: Day strip + event list (hidden on desktop) — BF-07 */}
+      <div className="block lg:hidden">
+        {/* Day button strip */}
+        <div className="flex border-b border-border">
+          {weekDays.map((day, i) => {
+            const isSelected = i === selectedDayIndex;
+            const isDayToday = isToday(day);
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedDayIndex(i)}
+                className={`
+                  flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors relative
+                  ${isSelected
+                    ? "bg-accent-purple/10 text-accent-purple"
+                    : "text-muted hover:text-foreground hover:bg-surface-elevated/50"
+                  }
+                `}
+              >
+                <span className="text-[10px] font-medium uppercase">
+                  {DAY_LABELS[i]}
+                </span>
+                <span
+                  className={`
+                    text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full
+                    ${isDayToday && !isSelected ? "bg-accent-purple/20 text-accent-purple" : ""}
+                    ${isDayToday && isSelected ? "bg-accent-purple text-white" : ""}
+                  `}
+                >
+                  {format(day, "d")}
+                </span>
+                {/* Selection indicator */}
+                {isSelected && (
+                  <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-accent-purple rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Day events list */}
+        <div className="p-3 min-h-[200px]">
+          {dayOccurrences.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-sm text-muted">No classes on {format(selectedDate, "EEEE")}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {dayOccurrences.map((occ) => (
+                <button
+                  key={occ.id}
+                  onClick={() => onQuickAdd?.(occ.occurrenceDate)}
+                  className={`
+                    w-full text-left p-3 rounded-lg border transition-colors
+                    ${occ.status === "cancelled"
+                      ? "opacity-50 border-border"
+                      : "border-transparent hover:bg-surface-elevated/80"
+                    }
+                  `}
+                  style={{
+                    backgroundColor: occ.status === "cancelled"
+                      ? undefined
+                      : `${occ.class_?.color || "#a855f7"}15`,
+                    borderLeftWidth: "3px",
+                    borderLeftColor: occ.class_?.color || "#a855f7",
+                  }}
+                >
+                  <p
+                    className={`text-sm font-medium text-foreground ${
+                      occ.status === "cancelled" ? "line-through" : ""
+                    }`}
+                  >
+                    {occ.class_?.name || "Class"}
+                    {occ.isExtra ? " (Extra)" : ""}
+                  </p>
+                  <p className="text-xs text-muted mt-0.5">
+                    {occ.startTime.slice(0, 5)} — {occ.endTime.slice(0, 5)}
+                    {occ.location ? ` · ${occ.location}` : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+

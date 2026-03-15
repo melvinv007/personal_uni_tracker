@@ -108,6 +108,7 @@ function SemesterCard({
    * to mark it as active. Only one semester can be active at a time."
    * The useUpdateSemester hook handles deactivating others optimistically.
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleToggleActive = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault(); /* Prevent link navigation */
@@ -171,26 +172,8 @@ function SemesterCard({
               <p className="text-xs text-muted mt-1">{dateRange}</p>
             </div>
 
-            {/* Action buttons — A toggle + edit */}
+            {/* Action buttons — edit only (Active toggle moved to edit modal per BF-15) */}
             <div className="flex items-center gap-1.5 shrink-0 ml-2">
-              {/* "A" toggle button — PRD §9.5 */}
-              <m.button
-                whileTap={{ scale: 0.9 }}
-                onClick={handleToggleActive}
-                title={semester.isActive ? "Remove active status" : "Set as active"}
-                className={`
-                  w-6 h-6 rounded-full text-[10px] font-bold
-                  flex items-center justify-center transition-colors
-                  ${
-                    semester.isActive
-                      ? "bg-accent-green/20 text-accent-green"
-                      : "bg-surface-elevated text-muted hover:text-foreground hover:bg-surface-elevated/80"
-                  }
-                `}
-              >
-                A
-              </m.button>
-
               {/* Edit button — PRD §9.5, §21.5 */}
               <m.button
                 whileTap={{ scale: 0.9 }}

@@ -10,7 +10,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { showToast } from "@/components/ui/toast";
-import { classKeys } from "./use-classes";
 import type { MarkAttendanceInput, BulkAttendanceInput } from "@/lib/validations/schemas";
 
 /** Query key factory for attendance */
@@ -129,10 +128,9 @@ export function useMarkAttendance(classId: string) {
       showToast("Failed to mark attendance", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: attendanceKeys.byClass(classId),
-      });
-      queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
     },
   });
 }
@@ -140,6 +138,7 @@ export function useMarkAttendance(classId: string) {
 /**
  * Bulk marks attendance for multiple occurrences.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useBulkAttendance(classId: string) {
   const queryClient = useQueryClient();
 
@@ -158,10 +157,9 @@ export function useBulkAttendance(classId: string) {
     },
     onSuccess: () => {
       showToast("Attendance marked", "success");
-      queryClient.invalidateQueries({
-        queryKey: attendanceKeys.byClass(classId),
-      });
-      queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
     },
     onError: () => {
       showToast("Failed to mark attendance", "error");

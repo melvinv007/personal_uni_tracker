@@ -16,7 +16,7 @@ import {
   classOccurrences,
   semesters,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { createClassSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -38,7 +38,11 @@ export async function GET(request: NextRequest) {
   if (!semesterId) return apiError("semesterId is required", 422);
 
   const data = await db.query.classes.findMany({
-    where: and(eq(classes.semesterId, semesterId), eq(classes.userId, user.id)),
+    where: and(
+      eq(classes.semesterId, semesterId),
+      eq(classes.userId, user.id),
+      isNull(classes.deletedAt)
+    ),
     with: {
       scheduleSlots: true,
       exams: true,

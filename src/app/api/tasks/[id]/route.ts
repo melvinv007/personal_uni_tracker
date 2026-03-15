@@ -9,7 +9,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { updateTaskSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -62,7 +62,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const [updated] = await db
     .update(tasks)
     .set(sanitized)
-    .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
+    .where(
+      and(
+        eq(tasks.id, id),
+        eq(tasks.userId, user.id),
+        isNull(tasks.deletedAt)
+      )
+    )
     .returning();
 
   if (!updated) return apiError("Task not found", 404);
@@ -74,18 +80,39 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * DELETE /api/tasks/[id]
  * Deletes a task.
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const { id } = await params;
+  const hard = request.nextUrl.searchParams.get("hard") === "true";
+  const undo = request.nextUrl.searchParams.get("undo") === "true";
 
-  const [deleted] = await db
-    .delete(tasks)
-    .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
-    .returning();
+  if (hard) {
+    const [deleted] = await db
+      .delete(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
+      .returning();
 
-  if (!deleted) return apiError("Task not found", 404);
+    if (!deleted) return apiError("Task not found", 404);
+  } else if (undo) {
+    const [restored] = await db
+      .update(tasks)
+      .set({ deletedAt: null })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
+      .returning();
+
+    if (!restored) return apiError("Task not found", 404);
+  } else {
+    // Soft delete
+    const [deleted] = await db
+      .update(tasks)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.id)))
+      .returning();
+
+    if (!deleted) return apiError("Task not found", 404);
+  }
 
   return apiSuccess({ success: true });
 }

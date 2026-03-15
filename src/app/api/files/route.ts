@@ -13,7 +13,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { files, classes } from "@/lib/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, isNull } from "drizzle-orm";
 import { z } from "zod";
 import {
   getAuthUser,
@@ -53,7 +53,13 @@ export async function GET(request: NextRequest) {
   const data = await db
     .select()
     .from(files)
-    .where(and(eq(files.classId, classId), eq(files.userId, user.id)))
+    .where(
+      and(
+        eq(files.classId, classId),
+        eq(files.userId, user.id),
+        isNull(files.deletedAt)
+      )
+    )
     .orderBy(asc(files.sortOrder));
 
   return apiSuccess(data);

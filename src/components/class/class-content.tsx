@@ -139,12 +139,13 @@ export default function ClassContent({
             />
           )}
 
-          {/* Pending Attendance — PRD Section 11.4 (unmarked past sessions) */}
+          {/* Recent Pending Attendance — PRD Section 11.4 (Today/Yesterday only) */}
           <PendingAttendance
             classId={classId}
             occurrences={classData.occurrences || []}
             attendance={attendance || []}
             classColor={classData.color}
+            mode="recent"
           />
 
           {/* Attendance Stats — PRD Section 11.3 */}
@@ -243,6 +244,15 @@ export default function ClassContent({
             classId={classId}
             files={classData.files || []}
             classColor={classData.color}
+          />
+
+          {/* Older Pending Attendance — PRD Section 11.4 (Before Yesterday) */}
+          <PendingAttendance
+            classId={classId}
+            occurrences={classData.occurrences || []}
+            attendance={attendance || []}
+            classColor={classData.color}
+            mode="older"
           />
 
           {/* Syllabus Rubric + Grade Calculator — PRD Section 11.17 */}

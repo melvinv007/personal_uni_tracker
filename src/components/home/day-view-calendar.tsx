@@ -14,12 +14,29 @@ import { useState } from "react";
 import { m, AnimatePresence } from "framer-motion";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { useDayOccurrences } from "@/lib/hooks/use-occurrences";
+import { useSemesterTasks } from "@/lib/hooks/use-tasks";
+import { useEvents } from "@/lib/hooks/use-events";
 
 interface DayViewCalendarProps {
   date: string;
   onDateChange: (date: string) => void;
   activeSemesterId?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  activeSemester?: any; // Pass the active semester to extract exams
 }
+
+/** Unified schedule item type for DayViewCalendar */
+type ScheduleItem = {
+  id: string;
+  type: "class" | "task" | "exam" | "event";
+  title: string;
+  subtitle: string;
+  startTime: string; // HH:mm for sorting
+  color: string;
+  isExtra?: boolean;
+  attendanceStatus?: string | null;
+  isCompleted?: boolean;
+};
 
 /**
  * DayViewCalendar — compact day schedule for the home page.
@@ -28,8 +45,13 @@ export default function DayViewCalendar({
   date,
   onDateChange,
   activeSemesterId,
+  activeSemester,
 }: DayViewCalendarProps) {
-  const { data: occurrences, isLoading } = useDayOccurrences(date);
+  const { data: occurrences, isLoading: isLoadingOccurrences } = useDayOccurrences(date);
+  const { data: tasks, isLoading: isLoadingTasks } = useSemesterTasks(activeSemesterId || "");
+  const { data: events, isLoading: isLoadingEvents } = useEvents(activeSemesterId);
+
+  const isLoading = isLoadingOccurrences || isLoadingTasks || isLoadingEvents;
   const [direction, setDirection] = useState(0);
 
   const dateObj = parseISO(date);
@@ -53,10 +75,105 @@ export default function DayViewCalendar({
     onDateChange(format(new Date(), "yyyy-MM-dd"));
   };
 
-  /* Filter to only scheduled/extra occurrences (not cancelled) */
-  const visibleOccurrences = (occurrences || [])
-    .filter((o) => o.status !== "cancelled")
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTime = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
+
+  /* Compile all items for the day */
+  const combinedItems: ScheduleItem[] = [];
+
+  /* 1. Classes */
+  (occurrences || []).forEach((o) => {
+    if (o.status === "cancelled") return;
+    
+    // BF-14: Hide if the class has already ended today
+    if (isCurrentDay && o.endTime < currentTime) return;
+
+    combinedItems.push({
+      id: `class-${o.id}`,
+      type: "class",
+      title: o.class_?.name || "Unknown Class",
+      subtitle: `${formatTime(o.startTime)} — ${formatTime(o.endTime)}`,
+      startTime: o.startTime,
+      color: o.class_?.color || "#a855f7",
+      isExtra: o.isExtra,
+      attendanceStatus: o.attendance && o.attendance.length > 0 ? o.attendance[0].status : null,
+    });
+  });
+
+  /* 2. Tasks & Assignments */
+  (tasks || []).forEach((t) => {
+    // Only include tasks due on this date
+    if (!t.deadline || !t.deadline.startsWith(date)) return;
+
+    // BF-14: Hide completed tasks
+    if (t.isCompleted || t.isSubmitted) return;
+
+    // Extract time from deadline (e.g. 2023-10-25T14:30:00Z -> local time)
+    const deadlineDate = new Date(t.deadline);
+    const timeString = `${deadlineDate.getHours().toString().padStart(2, "0")}:${deadlineDate.getMinutes().toString().padStart(2, "0")}`;
+
+    // BF-14: Hide past deadlines if viewing today
+    if (isCurrentDay && timeString < currentTime) return;
+
+    combinedItems.push({
+      id: `task-${t.id}`,
+      type: "task",
+      title: t.name,
+      subtitle: `Due at ${formatTime(timeString)}`,
+      startTime: timeString,
+      color: "#f59e0b", // Amber for tasks
+    });
+  });
+
+  /* 3. Non-Academic Events */
+  (events || []).forEach((e) => {
+    if (e.eventDate !== date) return;
+
+    // BF-14: Hide if event has already ended today
+    if (isCurrentDay && e.endTime < currentTime) return;
+
+    combinedItems.push({
+      id: `event-${e.id}`,
+      type: "event",
+      title: e.name,
+      subtitle: `${formatTime(e.startTime)} — ${formatTime(e.endTime)}`,
+      startTime: e.startTime,
+      color: e.color || "#3b82f6", // Blue default
+    });
+  });
+
+  /* 4. Exams */
+  if (activeSemester?.classes) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    activeSemester.classes.forEach((cls: any) => {
+      if (cls.exams) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        cls.exams.forEach((exam: any) => {
+          if (!exam.examDate.startsWith(date)) return;
+
+          const examDate = new Date(exam.examDate);
+          const timeString = `${examDate.getHours().toString().padStart(2, "0")}:${examDate.getMinutes().toString().padStart(2, "0")}`;
+
+          // BF-14: Hide passed exams if viewing today
+          if (isCurrentDay && timeString < currentTime) return;
+
+          combinedItems.push({
+            id: `exam-${exam.id}`,
+            type: "exam",
+            title: `${exam.name} (${cls.name})`,
+            subtitle: `At ${formatTime(timeString)}`,
+            startTime: timeString,
+            color: "#ef4444", // Red for exams
+          });
+        });
+      }
+    });
+  }
+
+  /* Sort all items chronologically by start time */
+  combinedItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
     <div className="rounded-xl border border-border dotted-surface-elevated overflow-hidden">
@@ -124,11 +241,10 @@ export default function DayViewCalendar({
               />
             ))}
           </div>
-        ) : visibleOccurrences.length === 0 ? (
-          /* No classes today */
+        ) : combinedItems.length === 0 ? (
+          /* BF-14: Nothing coming up */
           <div className="flex flex-col items-center justify-center h-[200px] text-center">
-            <p className="text-sm text-muted">No classes today</p>
-            <p className="text-xs text-muted/60 mt-1">Enjoy your free time</p>
+            <p className="text-sm text-muted">Nothing coming up. Enjoy the calm.</p>
           </div>
         ) : (
           /* Occurrence list */
@@ -142,8 +258,8 @@ export default function DayViewCalendar({
               transition={{ duration: 0.2 }}
               className="space-y-2"
             >
-              {visibleOccurrences.map((occ) => (
-                <OccurrenceItem key={occ.id} occurrence={occ} />
+              {combinedItems.map((item) => (
+                <ScheduleItemCard key={item.id} item={item} />
               ))}
             </m.div>
           </AnimatePresence>
@@ -153,36 +269,19 @@ export default function DayViewCalendar({
   );
 }
 
+/** Helper to format time */
+function formatTime(time: string) {
+  const [h, m] = time.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${m} ${ampm}`;
+}
+
 /**
- * Single occurrence item in the day view schedule.
+ * Single schedule item in the day view.
  */
-function OccurrenceItem({
-  occurrence,
-}: {
-  occurrence: {
-    id: string;
-    startTime: string;
-    endTime: string;
-    status: string;
-    isExtra: boolean;
-    class_?: { name: string; color: string };
-    attendance?: Array<{ status: string }>;
-  };
-}) {
-  const className = occurrence.class_?.name || "Unknown Class";
-  const color = occurrence.class_?.color || "#a855f7";
-  const hasAttendance = occurrence.attendance && occurrence.attendance.length > 0;
-  const attendanceStatus = hasAttendance ? occurrence.attendance![0].status : null;
-
-  /* Format time to display */
-  const formatTime = (time: string) => {
-    const [h, m] = time.split(":");
-    const hour = parseInt(h, 10);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${m} ${ampm}`;
-  };
-
+function ScheduleItemCard({ item }: { item: ScheduleItem }) {
   return (
     <div
       className="flex items-center gap-3 p-3 rounded-lg bg-surface-elevated/50 hover:bg-surface-elevated transition-colors"
@@ -190,36 +289,49 @@ function OccurrenceItem({
       {/* Color bar */}
       <div
         className="w-1 h-10 rounded-full shrink-0"
-        style={{ backgroundColor: color }}
+        style={{ backgroundColor: item.color }}
       />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-medium text-foreground truncate">
-            {className}
+            {item.title}
           </p>
-          {occurrence.isExtra && (
+          {item.isExtra && (
             <span className="text-[10px] px-1 py-0.5 rounded bg-accent-blue/20 text-accent-blue">
               Extra
             </span>
           )}
+          {item.type === "exam" && (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-accent-red/20 text-accent-red">
+              Exam
+            </span>
+          )}
+          {item.type === "task" && (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-accent-amber/20 text-accent-amber">
+              Task
+            </span>
+          )}
+          {item.type === "event" && (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-accent-blue/20 text-accent-blue">
+              Event
+            </span>
+          )}
         </div>
-        <p className="text-xs text-muted">
-          {formatTime(occurrence.startTime)} — {formatTime(occurrence.endTime)}
-        </p>
+        <p className="text-xs text-muted">{item.subtitle}</p>
       </div>
 
-      {/* Attendance indicator */}
-      {attendanceStatus && (
+      {/* Attendance indicator for classes */}
+      {item.type === "class" && item.attendanceStatus && (
         <div className="shrink-0">
-          {attendanceStatus === "present" && (
+          {item.attendanceStatus === "present" && (
             <div className="w-5 h-5 rounded-full bg-accent-green/20 flex items-center justify-center">
               <svg className="w-3 h-3 text-accent-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
           )}
-          {attendanceStatus === "absent" && (
+          {item.attendanceStatus === "absent" && (
             <div className="w-5 h-5 rounded-full bg-accent-red/20 flex items-center justify-center">
               <svg className="w-3 h-3 text-accent-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />

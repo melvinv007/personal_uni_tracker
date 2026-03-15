@@ -55,6 +55,7 @@ export function UserMenu({ userId, email }: UserMenuProps) {
         className="h-9 w-9 overflow-hidden rounded-full border border-white/10 transition-colors hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500"
         aria-label="User menu"
       >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={avatarUrl}
           alt="User avatar"

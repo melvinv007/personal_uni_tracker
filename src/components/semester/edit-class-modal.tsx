@@ -9,7 +9,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateClassSchema, type UpdateClassInput } from "@/lib/validations/schemas";
 import { useUpdateClass, useDeleteClass } from "@/lib/hooks/use-classes";
@@ -30,6 +30,13 @@ interface ClassForEdit {
   credits: number;
   startDate: string;
   endDate: string;
+  scheduleSlots?: Array<{
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    location: string | null;
+  }>;
 }
 
 interface EditClassModalProps {
@@ -37,6 +44,17 @@ interface EditClassModalProps {
   semesterId: string;
   onClose: () => void;
 }
+
+/** Day of week options */
+const DAY_OPTIONS = [
+  { value: "0", label: "Sunday" },
+  { value: "1", label: "Monday" },
+  { value: "2", label: "Tuesday" },
+  { value: "3", label: "Wednesday" },
+  { value: "4", label: "Thursday" },
+  { value: "5", label: "Friday" },
+  { value: "6", label: "Saturday" },
+];
 
 /** Category options matching the schema enum */
 const CATEGORY_OPTIONS = [
@@ -60,6 +78,7 @@ export default function EditClassModal({
 
   const {
     register,
+    control,
     handleSubmit,
     setValue,
     watch,
@@ -73,10 +92,32 @@ export default function EditClassModal({
       color: cls.color,
       startDate: cls.startDate,
       endDate: cls.endDate,
+      scheduleSlots: cls.scheduleSlots?.map((s) => ({
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        location: s.location || "",
+      })) || [],
     },
   });
 
+  /* Dynamic schedule slots array */
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "scheduleSlots",
+  });
+
   const selectedColor = watch("color");
+
+  /** Add a new schedule slot */
+  const addSlot = () => {
+    append({
+      dayOfWeek: 1,
+      startTime: "09:00",
+      endTime: "10:00",
+      location: "",
+    });
+  };
 
   /* Submit updated fields */
   const onSubmit = (data: UpdateClassInput) => {
@@ -100,7 +141,7 @@ export default function EditClassModal({
 
   return (
     <>
-      <Modal isOpen={true} title={`Edit ${cls.name}`} onClose={onClose}>
+      <Modal isOpen={true} title={`Edit ${cls.name}`} onClose={onClose} maxWidth="max-w-xl">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Class name */}
           <FormInput
@@ -130,7 +171,7 @@ export default function EditClassModal({
           <FormColorPicker
             label="Color"
             value={selectedColor || cls.color}
-            onChange={(color) => setValue("color", color)}
+            onChange={(color) => setValue("color", color, { shouldDirty: true, shouldValidate: true })}
             error={errors.color?.message}
           />
 
@@ -148,6 +189,102 @@ export default function EditClassModal({
               {...register("endDate")}
               error={errors.endDate?.message}
             />
+          </div>
+
+          {/* Schedule Slots — BF-13 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-foreground">
+                Schedule
+              </label>
+              <button
+                type="button"
+                onClick={addSlot}
+                className="text-xs text-accent-purple hover:text-accent-purple/80 transition-colors"
+              >
+                + Add Slot
+              </button>
+            </div>
+
+            {fields.length === 0 ? (
+              <p className="text-xs text-muted">
+                No schedule slots
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {fields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className="flex items-end gap-2 p-3 rounded-lg bg-surface/50 border border-border/30"
+                  >
+                    {/* Day */}
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted block mb-1">
+                        Day
+                      </label>
+                      <select
+                        className="w-full px-2 py-1.5 rounded bg-surface border border-border text-xs text-foreground"
+                        {...register(`scheduleSlots.${index}.dayOfWeek`, {
+                          valueAsNumber: true,
+                        })}
+                      >
+                        {DAY_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Start Time */}
+                    <div className="w-24">
+                      <label className="text-[10px] text-muted block mb-1">
+                        From
+                      </label>
+                      <input
+                        type="time"
+                        className="w-full px-2 py-1.5 rounded bg-surface border border-border text-xs text-foreground"
+                        {...register(`scheduleSlots.${index}.startTime`)}
+                      />
+                    </div>
+
+                    {/* End Time */}
+                    <div className="w-24">
+                      <label className="text-[10px] text-muted block mb-1">
+                        To
+                      </label>
+                      <input
+                        type="time"
+                        className="w-full px-2 py-1.5 rounded bg-surface border border-border text-xs text-foreground"
+                        {...register(`scheduleSlots.${index}.endTime`)}
+                      />
+                    </div>
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="p-1.5 rounded hover:bg-accent-red/10 text-muted hover:text-accent-red transition-colors shrink-0"
+                      aria-label="Remove slot"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Actions */}

@@ -12,7 +12,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { attendance, attendanceEditHistory, classOccurrences } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import {
   markAttendanceSchema,
   bulkAttendanceSchema,
@@ -31,7 +31,11 @@ export async function GET(request: NextRequest) {
   if (!classId) return apiError("classId is required", 422);
 
   const data = await db.query.attendance.findMany({
-    where: and(eq(attendance.classId, classId), eq(attendance.userId, user.id)),
+    where: and(
+      eq(attendance.classId, classId),
+      eq(attendance.userId, user.id),
+      isNull(attendance.deletedAt)
+    ),
     with: {
       occurrence: true,
       editHistory: true,

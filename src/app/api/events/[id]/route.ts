@@ -9,7 +9,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { nonAcademicEvents } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import {
   getAuthUser,
   apiError,
@@ -54,7 +54,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     .where(
       and(
         eq(nonAcademicEvents.id, id),
-        eq(nonAcademicEvents.userId, user.id)
+        eq(nonAcademicEvents.userId, user.id),
+        isNull(nonAcademicEvents.deletedAt)
       )
     )
     .returning();
@@ -68,23 +69,54 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * DELETE /api/events/[id]
  * Deletes a non-academic event.
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const { id } = await params;
+  const hard = request.nextUrl.searchParams.get("hard") === "true";
+  const undo = request.nextUrl.searchParams.get("undo") === "true";
 
-  const [deleted] = await db
-    .delete(nonAcademicEvents)
-    .where(
-      and(
-        eq(nonAcademicEvents.id, id),
-        eq(nonAcademicEvents.userId, user.id)
+  if (hard) {
+    const [deleted] = await db
+      .delete(nonAcademicEvents)
+      .where(
+        and(
+          eq(nonAcademicEvents.id, id),
+          eq(nonAcademicEvents.userId, user.id)
+        )
       )
-    )
-    .returning();
+      .returning();
 
-  if (!deleted) return apiError("Event not found", 404);
+    if (!deleted) return apiError("Event not found", 404);
+  } else if (undo) {
+    const [restored] = await db
+      .update(nonAcademicEvents)
+      .set({ deletedAt: null })
+      .where(
+        and(
+          eq(nonAcademicEvents.id, id),
+          eq(nonAcademicEvents.userId, user.id)
+        )
+      )
+      .returning();
+
+    if (!restored) return apiError("Event not found", 404);
+  } else {
+    // Soft delete
+    const [deleted] = await db
+      .update(nonAcademicEvents)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(nonAcademicEvents.id, id),
+          eq(nonAcademicEvents.userId, user.id)
+        )
+      )
+      .returning();
+
+    if (!deleted) return apiError("Event not found", 404);
+  }
 
   return apiSuccess({ success: true });
 }

@@ -10,7 +10,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { semesters } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { updateSemesterSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -34,7 +34,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
   const semester = await db.query.semesters.findFirst({
-    where: and(eq(semesters.id, id), eq(semesters.userId, user.id)),
+    where: and(
+      eq(semesters.id, id),
+      eq(semesters.userId, user.id),
+      isNull(semesters.deletedAt)
+    ),
     with: {
       classes: {
         with: {
@@ -93,7 +97,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const [updated] = await db
     .update(semesters)
     .set(sanitized)
-    .where(and(eq(semesters.id, id), eq(semesters.userId, user.id)))
+    .where(
+      and(
+        eq(semesters.id, id),
+        eq(semesters.userId, user.id),
+        isNull(semesters.deletedAt)
+      )
+    )
     .returning();
 
   if (!updated) {
@@ -107,19 +117,44 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * DELETE /api/semesters/[id]
  * Deletes a semester and all related data (CASCADE).
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const { id } = await params;
+  const hard = request.nextUrl.searchParams.get("hard") === "true";
+  const undo = request.nextUrl.searchParams.get("undo") === "true";
 
-  const [deleted] = await db
-    .delete(semesters)
-    .where(and(eq(semesters.id, id), eq(semesters.userId, user.id)))
-    .returning();
+  if (hard) {
+    const [deleted] = await db
+      .delete(semesters)
+      .where(and(eq(semesters.id, id), eq(semesters.userId, user.id)))
+      .returning();
 
-  if (!deleted) {
-    return apiError("Semester not found", 404);
+    if (!deleted) {
+      return apiError("Semester not found", 404);
+    }
+  } else if (undo) {
+    const [restored] = await db
+      .update(semesters)
+      .set({ deletedAt: null })
+      .where(and(eq(semesters.id, id), eq(semesters.userId, user.id)))
+      .returning();
+
+    if (!restored) {
+      return apiError("Semester not found", 404);
+    }
+  } else {
+    // Soft delete
+    const [deleted] = await db
+      .update(semesters)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(semesters.id, id), eq(semesters.userId, user.id)))
+      .returning();
+
+    if (!deleted) {
+      return apiError("Semester not found", 404);
+    }
   }
 
   return apiSuccess({ success: true });

@@ -11,7 +11,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { showToast } from "@/components/ui/toast";
-import { semesterKeys } from "./use-semesters";
+import { useUndoToast } from "./use-undo-toast";
+// import { semesterKeys } from "./use-semesters";
 import type { CreateNonAcademicEventInput } from "@/lib/validations/schemas";
 
 /** Query key factory for non-academic events */
@@ -113,13 +114,9 @@ export function useCreateEvent(semesterId?: string) {
       showToast("Failed to create event", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
-      /* Also invalidate semester detail since it includes nonAcademicEvents */
-      if (semesterId) {
-        queryClient.invalidateQueries({
-          queryKey: semesterKeys.detail(semesterId),
-        });
-      }
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
     onSuccess: () => {
       showToast("Event created", "success");
@@ -178,12 +175,9 @@ export function useUpdateEvent(semesterId?: string) {
       showToast("Failed to update event", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
-      if (semesterId) {
-        queryClient.invalidateQueries({
-          queryKey: semesterKeys.detail(semesterId),
-        });
-      }
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }
@@ -193,6 +187,7 @@ export function useUpdateEvent(semesterId?: string) {
  */
 export function useDeleteEvent(semesterId?: string) {
   const queryClient = useQueryClient();
+  const { showUndoToast } = useUndoToast();
   const queryKey = semesterId
     ? eventKeys.bySemester(semesterId)
     : eventKeys.all;
@@ -219,16 +214,18 @@ export function useDeleteEvent(semesterId?: string) {
       }
       showToast("Failed to delete event", "error");
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
-      if (semesterId) {
-        queryClient.invalidateQueries({
-          queryKey: semesterKeys.detail(semesterId),
-        });
-      }
+    onSuccess: (_data, id) => {
+      showUndoToast({
+        id,
+        entityName: "Event",
+        apiPath: "/api/events",
+        invalidateKeys: [["events"], ["semesters"], ["occurrences"]],
+      });
     },
-    onSuccess: () => {
-      showToast("Event deleted", "success");
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }

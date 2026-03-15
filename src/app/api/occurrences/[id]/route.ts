@@ -9,7 +9,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { classOccurrences } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { getAuthUser, apiError, apiSuccess } from "@/lib/api/helpers";
 
@@ -50,7 +50,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const [updated] = await db
     .update(classOccurrences)
     .set(parsed.data)
-    .where(and(eq(classOccurrences.id, id), eq(classOccurrences.userId, user.id)))
+    .where(
+      and(
+        eq(classOccurrences.id, id),
+        eq(classOccurrences.userId, user.id),
+        isNull(classOccurrences.deletedAt)
+      )
+    )
     .returning();
 
   if (!updated) return apiError("Occurrence not found", 404);
@@ -62,11 +68,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * DELETE /api/occurrences/[id]
  * Deletes an extra class occurrence only.
  */
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const { id } = await params;
+  const hard = request.nextUrl.searchParams.get("hard") === "true";
+  const undo = request.nextUrl.searchParams.get("undo") === "true";
 
   /* Only allow deletion of extra classes */
   const occurrence = await db.query.classOccurrences.findFirst({
@@ -81,9 +89,22 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     return apiError("Only extra classes can be deleted. Cancel scheduled classes instead.", 400);
   }
 
-  await db
-    .delete(classOccurrences)
-    .where(eq(classOccurrences.id, id));
+  if (hard) {
+    await db
+      .delete(classOccurrences)
+      .where(eq(classOccurrences.id, id));
+  } else if (undo) {
+    await db
+      .update(classOccurrences)
+      .set({ deletedAt: null })
+      .where(eq(classOccurrences.id, id));
+  } else {
+    // Soft delete
+    await db
+      .update(classOccurrences)
+      .set({ deletedAt: new Date() })
+      .where(eq(classOccurrences.id, id));
+  }
 
   return apiSuccess({ success: true });
 }

@@ -10,7 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { showToast } from "@/components/ui/toast";
-import { classKeys } from "./use-classes";
+import { useUndoToast } from "./use-undo-toast";
 import type { CreateExamInput, UpdateExamInput } from "@/lib/validations/schemas";
 
 /** Query key factory for exams */
@@ -99,8 +99,10 @@ export function useCreateExam(classId: string) {
       showToast("Failed to create exam", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: examKeys.byClass(classId) });
-      queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: ["exams"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
     onSuccess: () => {
       showToast("Exam created", "success");
@@ -158,8 +160,10 @@ export function useUpdateExam(classId: string) {
       showToast("Failed to update exam", "error");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: examKeys.byClass(classId) });
-      queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: ["exams"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }
@@ -169,6 +173,7 @@ export function useUpdateExam(classId: string) {
  */
 export function useDeleteExam(classId: string) {
   const queryClient = useQueryClient();
+  const { showUndoToast } = useUndoToast();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -194,9 +199,19 @@ export function useDeleteExam(classId: string) {
       }
       showToast("Failed to delete exam", "error");
     },
+    onSuccess: (_data, id) => {
+      showUndoToast({
+        id,
+        entityName: "Exam",
+        apiPath: "/api/exams",
+        invalidateKeys: [["exams"], ["classes"], ["semesters"], ["occurrences"]],
+      });
+    },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: examKeys.byClass(classId) });
-      queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: ["exams"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
     },
   });
 }

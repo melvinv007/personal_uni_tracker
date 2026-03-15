@@ -103,6 +103,7 @@ export default function HomeContent() {
                 date={selectedDate}
                 onDateChange={setSelectedDate}
                 activeSemesterId={activeSemester?.id}
+                activeSemester={activeSemester}
               />
 
               {/* Weekly Academic Summary — Sundays only — PRD §9.8, §17.6 */}

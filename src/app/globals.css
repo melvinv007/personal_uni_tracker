@@ -176,6 +176,26 @@ body {
   }
 }
 
+/* Tremor / Recharts dark theme overrides — PRD BF-18 */
+.recharts-text, 
+.recharts-cartesian-axis-tick-value {
+  fill: #e5e5e5 !important;
+}
+
+.recharts-tooltip-wrapper {
+  background: #1a1a1a !important;
+}
+
+.recharts-cartesian-grid-horizontal line, 
+.recharts-cartesian-grid-vertical line,
+.recharts-cartesian-grid line {
+  stroke: rgba(255, 255, 255, 0.08) !important;
+}
+
+.recharts-legend-item-text {
+  color: #e5e5e5 !important;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

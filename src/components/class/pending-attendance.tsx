@@ -37,6 +37,8 @@ interface PendingAttendanceProps {
   occurrences: Occurrence[];
   attendance: AttendanceRecord[];
   classColor: string;
+  /** PRD §11.4: "recent" = today/yesterday, "older" = anything before yesterday */
+  mode?: "recent" | "older";
 }
 
 /**
@@ -47,6 +49,7 @@ export default function PendingAttendance({
   occurrences,
   attendance,
   classColor,
+  mode = "older", // default to older for backward compatibility if needed
 }: PendingAttendanceProps) {
   const markAttendance = useMarkAttendance(classId);
   const bulkAttendance = useBulkAttendance(classId);
@@ -55,19 +58,48 @@ export default function PendingAttendance({
   /* Find past occurrences without attendance (excluding today and cancelled) */
   const pendingOccurrences = useMemo(() => {
     const today = startOfDay(new Date());
+    // "today" logic for pending attendance means we only consider occurrences whose endTime has passed, but for simplicity we rely on the date. Wait, PRD 11.4 says "today and yesterday".
+    // IsBefore today means yesterday or older.
+    // Let's refine the date logic:
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
     const markedIds = new Set(attendance.map((a) => a.occurrenceId));
 
     return occurrences
       .filter((o) => {
         const occDate = parseISO(o.occurrenceDate);
-        return (
-          isBefore(occDate, today) &&
-          o.status !== "cancelled" &&
-          !markedIds.has(o.id)
-        );
+        const isNotMarked = !markedIds.has(o.id) && o.status !== "cancelled";
+        
+        // Time checks
+        // We consider an occurrence "past" if it's before today, OR if it's today but the end time has passed.
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
+        
+        let isPast = false;
+        if (isBefore(occDate, today)) {
+          isPast = true;
+        } else if (occDate.getTime() === today.getTime()) {
+           // For today, it's pending only if the class end time has passed
+           if (o.endTime < currentTime) {
+              isPast = true;
+           }
+        }
+
+        if (!isPast || !isNotMarked) return false;
+
+        // Mode filtering
+        const isRecent = occDate.getTime() >= yesterday.getTime(); // Yesterday or today
+        
+        if (mode === "recent") return isRecent;
+        if (mode === "older") return !isRecent;
+        
+        return true;
       })
       .sort((a, b) => b.occurrenceDate.localeCompare(a.occurrenceDate));
-  }, [occurrences, attendance]);
+  }, [occurrences, attendance, mode]);
 
   /* Don't render if nothing pending */
   if (pendingOccurrences.length === 0) return null;
@@ -111,41 +143,43 @@ export default function PendingAttendance({
     <GlowingCard color={classColor} className="p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-sm font-semibold text-accent-amber">
-            ⚠️ Pending Attendance
+          <h3 className={`text-sm font-semibold ${mode === "recent" ? "text-accent-red" : "text-accent-amber"}`}>
+            {mode === "recent" ? "⚠️ Recent Missing Attendance" : "⚠️ Pending Attendance"}
           </h3>
           <p className="text-xs text-muted mt-0.5">
             {pendingOccurrences.length} unmarked session{pendingOccurrences.length !== 1 ? "s" : ""}
           </p>
         </div>
 
-        {/* Bulk actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleAll}
-            className="text-xs text-muted hover:text-foreground transition-colors"
-          >
-            {selectedIds.size === pendingOccurrences.length ? "Deselect All" : "Select All"}
-          </button>
-          {selectedIds.size > 0 && (
-            <div className="flex gap-1">
-              <button
-                onClick={() => handleBulkMark("present")}
-                disabled={bulkAttendance.isPending}
-                className="text-xs px-2 py-1 rounded bg-accent-green/20 text-accent-green hover:bg-accent-green/30 transition-colors"
-              >
-                All Present
-              </button>
-              <button
-                onClick={() => handleBulkMark("absent")}
-                disabled={bulkAttendance.isPending}
-                className="text-xs px-2 py-1 rounded bg-accent-red/20 text-accent-red hover:bg-accent-red/30 transition-colors"
-              >
-                All Absent
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Bulk actions — Only show for 'older' mode per BF-17 */}
+        {mode === "older" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleAll}
+              className="text-xs text-muted hover:text-foreground transition-colors"
+            >
+              {selectedIds.size === pendingOccurrences.length ? "Deselect All" : "Select All"}
+            </button>
+            {selectedIds.size > 0 && (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => handleBulkMark("present")}
+                  disabled={bulkAttendance.isPending}
+                  className="text-xs px-2 py-1 rounded bg-accent-green/20 text-accent-green hover:bg-accent-green/30 transition-colors"
+                >
+                  All Present
+                </button>
+                <button
+                  onClick={() => handleBulkMark("absent")}
+                  disabled={bulkAttendance.isPending}
+                  className="text-xs px-2 py-1 rounded bg-accent-red/20 text-accent-red hover:bg-accent-red/30 transition-colors"
+                >
+                  All Absent
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Pending items list */}

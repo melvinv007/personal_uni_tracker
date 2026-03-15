@@ -32,6 +32,9 @@ export default function AttendanceCalculator({
 }: AttendanceCalculatorProps) {
   const [activeTab, setActiveTab] = useState<"survival" | "bunk">("survival");
 
+  /* BF-10: Don't show calculators when no classes have occurred yet */
+  if (stats.totalOccurred === 0) return null;
+
   return (
     <m.div
       initial={{ opacity: 0, y: 10 }}

@@ -10,7 +10,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { createTaskSchema } from "@/lib/validations/schemas";
 import {
   getAuthUser,
@@ -35,7 +35,13 @@ export async function GET(request: NextRequest) {
     const data = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.classId, classId), eq(tasks.userId, user.id)));
+      .where(
+        and(
+          eq(tasks.classId, classId),
+          eq(tasks.userId, user.id),
+          isNull(tasks.deletedAt)
+        )
+      );
     return apiSuccess(data);
   }
 
@@ -43,7 +49,13 @@ export async function GET(request: NextRequest) {
     const data = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.semesterId, semesterId), eq(tasks.userId, user.id)));
+      .where(
+        and(
+          eq(tasks.semesterId, semesterId),
+          eq(tasks.userId, user.id),
+          isNull(tasks.deletedAt)
+        )
+      );
     return apiSuccess(data);
   }
 

@@ -87,6 +87,7 @@ export function useClassOccurrences(classId: string) {
 /**
  * Creates an extra class occurrence.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useCreateExtraClass(classId: string) {
   const queryClient = useQueryClient();
 
@@ -105,9 +106,9 @@ export function useCreateExtraClass(classId: string) {
     },
     onSuccess: () => {
       showToast("Extra class added", "success");
-      queryClient.invalidateQueries({
-        queryKey: occurrenceKeys.byClass(classId),
-      });
+      queryClient.invalidateQueries({ queryKey: ["occurrences"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
     },
     onError: () => {
       showToast("Failed to add extra class", "error");
@@ -143,6 +144,8 @@ export function useUpdateOccurrence() {
     onSuccess: () => {
       /* Invalidate all occurrence queries */
       queryClient.invalidateQueries({ queryKey: ["occurrences"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
     },
     onError: () => {
       showToast("Failed to update class", "error");

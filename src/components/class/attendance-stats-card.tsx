@@ -31,6 +31,9 @@ export default function AttendanceStatsCard({
   const { totalAttended, totalOccurred, attendancePercentage, totalCancelled } =
     stats;
 
+  /* BF-10: Don't show attendance stats when no classes have occurred yet */
+  if (totalOccurred === 0) return null;
+
   /* Skip-class safety calculation — PRD Section 17.1 */
   const safety = calculateSkipSafety(stats, totalRemaining);
 
