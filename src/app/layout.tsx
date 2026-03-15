@@ -35,10 +35,13 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Classey — University Life Tracker",
-  description:
-    "Personal university life tracker for managing semesters, classes, attendance, assignments, exams, and academic analytics.",
+  title: "Classey",
+  description: "Personal university life tracker for managing semesters, classes, attendance, assignments, exams, and academic analytics.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

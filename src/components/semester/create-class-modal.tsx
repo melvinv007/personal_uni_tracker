@@ -69,7 +69,7 @@ export default function CreateClassModal({
     defaultValues: {
       name: "",
       category: "Core",
-      credits: 3,
+      credits: 6,
       color: semesterColor,
       startDate: semesterStartDate,
       endDate: semesterEndDate,
@@ -126,8 +126,8 @@ export default function CreateClassModal({
           <FormInput
             label="Credits"
             type="number"
-            min={1}
-            max={20}
+            min={0}
+            max={60}
             error={errors.credits?.message}
             {...register("credits", { valueAsNumber: true })}
           />
